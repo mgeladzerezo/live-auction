@@ -15,6 +15,7 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -33,7 +34,8 @@ import org.springframework.test.context.DynamicPropertySource;
         "auction.demo.enabled=false",
         "auction.auth.pbkdf2-iterations=1000",
         "auction.instance-id=test",
-        "spring.datasource.hikari.minimum-idle=2"
+        "spring.datasource.hikari.minimum-idle=2",
+        "spring.main.banner-mode=off"
 })
 public abstract class AbstractIntegrationTest {
 
@@ -53,6 +55,15 @@ public abstract class AbstractIntegrationTest {
         registry.add("spring.datasource.url", TestPostgres::jdbcUrl);
         registry.add("spring.datasource.username", TestPostgres::username);
         registry.add("spring.datasource.password", TestPostgres::password);
+    }
+
+    /**
+     * Takes auctions left behind by earlier tests out of play, so that "the closer closed
+     * exactly one auction" means the one this test created.
+     */
+    @BeforeEach
+    void retireLeftoverAuctions() {
+        jdbc.sql("UPDATE auctions SET status = 'UNSOLD' WHERE status IN ('SCHEDULED', 'OPEN', 'CLOSED')").update();
     }
 
     @AfterEach
