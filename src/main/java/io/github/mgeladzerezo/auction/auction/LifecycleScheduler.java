@@ -8,7 +8,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Drives {@link AuctionLifecycle} on a fixed delay. Every instance may run it; the lifecycle
- * claims rows with {@code SKIP LOCKED}, so instances share the work instead of repeating it.
+ * claims each auction with a transaction-scoped advisory lock, so instances share the work
+ * instead of repeating it.
  * Can be switched off ({@code auction.lifecycle.enabled=false}) for tests that need to decide
  * themselves when a close happens.
  */
