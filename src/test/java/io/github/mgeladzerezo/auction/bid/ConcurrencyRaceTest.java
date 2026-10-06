@@ -230,9 +230,10 @@ class ConcurrencyRaceTest extends AbstractIntegrationTest {
 
     /**
      * A bid inside the anti-sniping window has written its extension but not committed when the
-     * original deadline passes. The closer must neither wait for it nor close the auction, and
-     * once the bid commits the auction must stay open until the extended deadline: the close
-     * loses to a bid that committed an extension.
+     * original deadline passes. The closer finds the auction due and queues for its row. When
+     * the bid commits, the closer gets the row, re-checks the deadline against what the bid
+     * wrote, and must leave the auction open: the close loses to a bid that committed an
+     * extension.
      */
     @ParameterizedTest
     @ValueSource(strings = {"optimistic", "pessimistic"})
@@ -255,11 +256,14 @@ class ConcurrencyRaceTest extends AbstractIntegrationTest {
         await(written);
         awaitDbTime(auction.endsAt());
 
-        // Deadline passed, bid uncommitted: the row is locked, so SKIP LOCKED passes over it.
+        // Deadline passed, bid written but uncommitted. The closer sees a due auction (it cannot
+        // see the uncommitted extension) and waits for the row instead of closing or skipping it.
+        Future<Integer> closing = threads.submit(() -> lifecycle.closeDue());
+        assertStillBlocked(closing);
+        // A second scheduler instance does not pile up behind the first: the auction is claimed.
         long started = System.nanoTime();
         assertThat(lifecycle.closeDue()).isZero();
-        assertThat(Duration.ofNanos(System.nanoTime() - started)).as("the closer must not wait for the bid")
-                .isLessThan(Duration.ofSeconds(2));
+        assertThat(Duration.ofNanos(System.nanoTime() - started)).isLessThan(Duration.ofSeconds(2));
         assertThat(reload(auction.id()).status()).isEqualTo(AuctionStatus.OPEN);
 
         letCommit.countDown();
@@ -267,9 +271,10 @@ class ConcurrencyRaceTest extends AbstractIntegrationTest {
         Instant extendedEnd = auction.endsAt().plusSeconds(2);
         assertThat(accepted.extendedTo()).isEqualTo(extendedEnd);
 
-        // Committed now, original deadline long gone, extended one not reached: still nothing to close.
-        assertThat(lifecycle.closeDue()).isZero();
+        // The waiting closer now has the row, re-checks, and finds the deadline moved.
+        assertThat(get(closing)).as("the close must lose to the committed extension").isZero();
         assertThat(reload(auction.id()).status()).isEqualTo(AuctionStatus.OPEN);
+        assertThat(lifecycle.closeDue()).isZero();
 
         awaitDbTime(extendedEnd);
         assertThat(lifecycle.closeDue()).isEqualTo(1);
@@ -277,6 +282,46 @@ class ConcurrencyRaceTest extends AbstractIntegrationTest {
         Auction settled = reload(auction.id());
         assertThat(settled.status()).isEqualTo(AuctionStatus.SETTLED);
         assertThat(settled.leaderId()).isEqualTo(alice.id());
+        assertThat(audit.check(auction.id()).violations()).isEmpty();
+    }
+
+    /**
+     * The same race where the bid does not extend (anti-sniping off): the closer waits for the
+     * bid and then closes the auction with that bid as the winner. And it waits rather than
+     * skips: skipping locked rows is what starved the closer behind pessimistic bidders.
+     */
+    @Test
+    void closerQueuesBehindAnInFlightBidAndThenClosesWithThatBidAsWinner() throws Exception {
+        Auction auction = open(auction().duration(Duration.ofMillis(1500)));
+        User alice = newUser("alice");
+        BidCommand command = bid(auction, alice, 1000);
+
+        CountDownLatch written = new CountDownLatch(1);
+        CountDownLatch letCommit = new CountDownLatch(1);
+        ledger.installCheckpoint(new BidCheckpoint() {
+            @Override
+            public void beforeCommit(BidCommand paused) {
+                written.countDown();
+                await(letCommit);
+            }
+        });
+
+        Future<BidResult> result = threads.submit(() -> strategy("pessimistic").place(command));
+        await(written);
+        awaitDbTime(auction.endsAt());
+
+        Future<Integer> closing = threads.submit(() -> lifecycle.closeDue());
+        assertStillBlocked(closing);
+        letCommit.countDown();
+
+        assertThat(get(result)).isInstanceOf(BidResult.Accepted.class);
+        assertThat(get(closing)).isEqualTo(1);
+        Auction closed = reload(auction.id());
+        assertThat(closed.status()).isEqualTo(AuctionStatus.CLOSED);
+        assertThat(closed.leaderId()).as("the bid that was decided before the deadline counts").isEqualTo(alice.id());
+        assertThat(closed.currentPrice()).isEqualTo(1000);
+        lifecycle.settleClosed();
+        assertThat(reload(auction.id()).status()).isEqualTo(AuctionStatus.SETTLED);
         assertThat(audit.check(auction.id()).violations()).isEmpty();
     }
 

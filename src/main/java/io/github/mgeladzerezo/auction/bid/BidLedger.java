@@ -3,6 +3,7 @@ package io.github.mgeladzerezo.auction.bid;
 import io.github.mgeladzerezo.auction.auction.AuctionRepository;
 import io.github.mgeladzerezo.auction.auction.AuctionStatus;
 import io.github.mgeladzerezo.auction.bid.BidRules.Decision;
+import io.github.mgeladzerezo.auction.config.AuctionProperties;
 import io.github.mgeladzerezo.auction.event.AuctionEvent;
 import io.github.mgeladzerezo.auction.event.EventStore;
 import java.sql.ResultSet;
@@ -10,6 +11,8 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;
+import java.util.concurrent.Semaphore;
+import java.util.function.Supplier;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -87,12 +90,21 @@ public class BidLedger {
     private final JdbcClient jdbc;
     private final EventStore events;
     private final TransactionTemplate transaction;
+    /**
+     * Bulkhead: at most this many bid transactions hold a pooled connection at once. Bidders
+     * beyond that wait here, in arrival order, as cheap parked virtual threads, instead of
+     * queueing inside the connection pool where they would also block the scheduler, snapshot
+     * reads and health checks.
+     */
+    private final Semaphore permits;
     private volatile BidCheckpoint checkpoint = BidCheckpoint.NONE;
 
-    public BidLedger(JdbcClient jdbc, EventStore events, PlatformTransactionManager transactionManager) {
+    public BidLedger(JdbcClient jdbc, EventStore events, PlatformTransactionManager transactionManager,
+                     AuctionProperties properties) {
         this.jdbc = jdbc;
         this.events = events;
         this.transaction = new TransactionTemplate(transactionManager);
+        this.permits = new Semaphore(Math.max(1, properties.bidding().maxConcurrent()), true);
     }
 
     /** Test seam, see {@link BidCheckpoint}. */
@@ -102,7 +114,7 @@ public class BidLedger {
 
     /** Runs one read-decide-write transaction for the bid. */
     public Attempt attempt(BidCommand command, LockMode lockMode) {
-        return transaction.execute(status -> {
+        return withPermit(() -> transaction.execute(status -> {
             Optional<BidState> found = readState(command.auctionId(), lockMode);
             if (found.isEmpty()) {
                 return reject(status, command, RejectReason.AUCTION_NOT_FOUND, null);
@@ -114,7 +126,7 @@ public class BidLedger {
                 case Decision.Reject(RejectReason reason) -> reject(status, command, reason, state);
                 case Decision.Accept accept -> accept(status, command, state, accept);
             };
-        });
+        }));
     }
 
     /**
@@ -122,9 +134,23 @@ public class BidLedger {
      * Like every answer it is keyed by the client id, so it is as idempotent as the others.
      */
     public BidResult rejectAfterContention(BidCommand command) {
-        Attempt.Done done = transaction.execute(
-                status -> reject(status, command, RejectReason.CONTENTION, null));
+        Attempt.Done done = withPermit(() -> transaction.execute(
+                status -> reject(status, command, RejectReason.CONTENTION, null)));
         return done.result();
+    }
+
+    private <T> T withPermit(Supplier<T> work) {
+        try {
+            permits.acquire();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while waiting for a bid permit", e);
+        }
+        try {
+            return work.get();
+        } finally {
+            permits.release();
+        }
     }
 
     private Optional<BidState> readState(long auctionId, LockMode lockMode) {

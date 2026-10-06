@@ -21,14 +21,17 @@ public record AuctionProperties(
         @DefaultValue Demo demo) {
 
     /**
-     * @param strategy    {@code optimistic} or {@code pessimistic}
-     * @param maxAttempts how many times the optimistic strategy tries before answering CONTENTION
-     * @param backoffBase first backoff ceiling; doubles per failed attempt
-     * @param backoffCap  upper bound for a single backoff sleep
+     * @param strategy      {@code optimistic} or {@code pessimistic}
+     * @param maxAttempts   how many times the optimistic strategy tries before answering CONTENTION
+     * @param maxConcurrent bid transactions allowed to run at once on this instance; keep it
+     *                      below the connection pool size so reads and the scheduler never starve
+     * @param backoffBase   first backoff ceiling; doubles per failed attempt
+     * @param backoffCap    upper bound for a single backoff sleep
      */
     public record Bidding(
             @DefaultValue("optimistic") String strategy,
             @DefaultValue("8") int maxAttempts,
+            @DefaultValue("12") int maxConcurrent,
             @DefaultValue("2ms") Duration backoffBase,
             @DefaultValue("50ms") Duration backoffCap) {
     }
