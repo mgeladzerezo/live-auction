@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: live-auction
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5545/auction}
+    username: ${DB_USER:auction}
+    password: ${DB_PASSWORD:auction}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:16}
+      # Fail fast instead of queueing for 30 s: a bid that cannot get a connection is
+      # answered with a retryable error, and the client retries with the same id.
+      connection-timeout: 5000
+  threads:
+    virtual:
+      enabled: true
+  jackson:
+    default-property-inclusion: non_null
+  lifecycle:
+    timeout-per-shutdown-phase: 10s
+
+server:
+  port: ${PORT:8205}
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+auction:
+  instance-id: ${INSTANCE_ID:local}
+  bidding:
+    strategy: ${BID_STRATEGY:optimistic}
+  demo:
+    enabled: ${DEMO_ENABLED:true}
+
+logging:
+  level:
+    io.github.mgeladzerezo.auction: INFO
