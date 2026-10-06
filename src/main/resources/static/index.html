@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Live Auction</title>
+  <meta name="description" content="Real-time auctions with WebSocket bidding and anti-sniping extensions.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232f5bea'/%3E%3Cpath d='M9 22h14M12 9l8 8M17 7l5 5-7 7-5-5z' stroke='white' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#/">Live Auction</a>
+    <div class="topbar-right">
+      <span id="connection" class="pill pill-connecting" role="status" aria-live="polite">Connecting</span>
+      <span id="instance" class="muted small" title="Application instance serving this socket"></span>
+      <button id="theme" class="btn btn-ghost" type="button" aria-label="Toggle dark mode">Theme</button>
+      <span id="account"></span>
+    </div>
+  </header>
+
+  <main id="view" class="container" aria-live="polite"></main>
+
+  <dialog id="login">
+    <form method="dialog" id="login-form" class="stack">
+      <h2 id="login-title">Log in</h2>
+      <label>Username
+        <input name="username" autocomplete="username" required minlength="3" maxlength="32" pattern="[A-Za-z0-9_.\-]+">
+      </label>
+      <label>Password
+        <input name="password" type="password" autocomplete="current-password" required minlength="8">
+      </label>
+      <p id="login-error" class="error" role="alert" hidden></p>
+      <div class="row">
+        <button type="submit" class="btn btn-primary" id="login-submit">Log in</button>
+        <button type="button" class="btn" id="login-switch">Create an account instead</button>
+        <button type="button" class="btn btn-ghost" id="login-cancel">Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
