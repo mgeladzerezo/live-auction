@@ -5,6 +5,7 @@ import io.github.mgeladzerezo.auction.auction.AuctionLifecycle;
 import io.github.mgeladzerezo.auction.auction.AuctionRepository;
 import io.github.mgeladzerezo.auction.auction.AuctionStatus;
 import io.github.mgeladzerezo.auction.auction.NewAuction;
+import io.github.mgeladzerezo.auction.auth.AuthService;
 import io.github.mgeladzerezo.auction.auth.User;
 import io.github.mgeladzerezo.auction.bid.BidCheckpoint;
 import io.github.mgeladzerezo.auction.bid.BidCommand;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -34,6 +36,7 @@ import org.springframework.test.context.DynamicPropertySource;
         "auction.demo.enabled=false",
         "auction.auth.pbkdf2-iterations=1000",
         "auction.instance-id=test",
+        "auction.realtime.resync-interval=1s",
         "spring.datasource.hikari.minimum-idle=2",
         "spring.main.banner-mode=off"
 })
@@ -49,6 +52,10 @@ public abstract class AbstractIntegrationTest {
     protected AuctionLifecycle lifecycle;
     @Autowired
     protected BidLedger ledger;
+    @Autowired
+    protected AuthService auth;
+    @LocalServerPort
+    protected int port;
 
     @DynamicPropertySource
     static void database(DynamicPropertyRegistry registry) {
@@ -79,6 +86,12 @@ public abstract class AbstractIntegrationTest {
                 .query(Long.class)
                 .single();
         return new User(id, username);
+    }
+
+    /** Registers a user through the real auth service and returns the user with a bearer token. */
+    protected AuthService.Session register(String prefix) {
+        String username = prefix + "-" + USER_COUNTER.incrementAndGet() + "-" + Long.toString(System.nanoTime(), 36);
+        return auth.register(username, "correct-horse-battery");
     }
 
     /** A plain auction: start 1000, increment 100, no reserve, no anti-sniping, one hour long. */
