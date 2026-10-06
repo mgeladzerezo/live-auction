@@ -1,4 +1,5 @@
 import { api, session } from './api.js';
+import { renderCountdown } from './countdown.js';
 import { clock, h, money, parseMoney } from './util.js';
 
 const REJECTIONS = {
@@ -79,6 +80,7 @@ export function auctionView(root, live, auctionId, onLogin) {
     }
     countdown.dataset.ends = view.endsAt;
     countdown.dataset.state = view.status;
+    renderCountdown(countdown, live);
     extensions.textContent = view.antiSnipeWindowSeconds > 0
       ? `Bids in the last ${view.antiSnipeWindowSeconds}s extend it (${view.extensionCount}/${view.maxExtensions} used)` : '';
     minimum.textContent = money(view.minimumNextBid);

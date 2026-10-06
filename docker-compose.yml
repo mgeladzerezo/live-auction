@@ -1,6 +1,6 @@
 # Postgres, two application instances and nginx in front of them. Open http://localhost:8205.
 x-app: &app
-  build: .
+  image: live-auction:local
   depends_on:
     postgres:
       condition: service_healthy
@@ -25,16 +25,17 @@ services:
       timeout: 3s
       retries: 10
 
+  # app-a builds the image; app-b reuses it (building it twice under one tag collides).
   app-a:
     <<: *app
-    image: live-auction:local
+    build: .
     environment:
       <<: *app-env
       INSTANCE_ID: app-a
 
   app-b:
     <<: *app
-    image: live-auction:local
+    pull_policy: never
     environment:
       <<: *app-env
       INSTANCE_ID: app-b

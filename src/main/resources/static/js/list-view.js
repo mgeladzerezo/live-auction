@@ -1,4 +1,5 @@
 import { api } from './api.js';
+import { renderCountdown } from './countdown.js';
 import { h, money } from './util.js';
 
 const STATUS_LABEL = { SCHEDULED: 'Scheduled', OPEN: 'Live', CLOSED: 'Closing up', SETTLED: 'Sold', UNSOLD: 'Unsold' };
@@ -29,6 +30,7 @@ export function listView(root, live) {
     const entry = live.auctions.get(id);
     if (!entry) return;
     const next = card(entry.view);
+    renderCountdown(next.querySelector('.countdown'), live);
     const existing = grid.querySelector(`[data-id="${id}"]`);
     if (existing) existing.replaceWith(next);
     else grid.append(next);

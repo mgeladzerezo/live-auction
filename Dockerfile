@@ -15,5 +15,5 @@ USER auction
 EXPOSE 8205
 ENV PORT=8205 JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=70"
 HEALTHCHECK --interval=10s --timeout=3s --start-period=40s --retries=6 \
-    CMD curl -fsS http://localhost:8205/actuator/health/readiness || exit 1
+    CMD ["bash", "-c", "exec 3<>/dev/tcp/localhost/8205 && printf 'GET /actuator/health/readiness HTTP/1.0\r\n\r\n' >&3 && head -n1 <&3 | grep -q ' 200 '"]
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
