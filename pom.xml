@@ -25,6 +25,8 @@
         <!-- JUnit tags left out of the default build; the load profile clears this. -->
         <test.excludedGroups>load</test.excludedGroups>
         <test.groups/>
+        <!-- Extra JVM flags for the test JVM, for example -Xlog:gc when investigating a run. -->
+        <test.jvmArgs></test.jvmArgs>
     </properties>
 
     <dependencies>
@@ -99,7 +101,7 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <argLine>-Xmx${test.heap} -XX:+EnableDynamicAgentLoading</argLine>
+                    <argLine>-Xmx${test.heap} -XX:+EnableDynamicAgentLoading ${test.jvmArgs}</argLine>
                     <excludedGroups>${test.excludedGroups}</excludedGroups>
                     <groups>${test.groups}</groups>
                     <trimStackTrace>false</trimStackTrace>

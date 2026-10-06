@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory;
  * <p>Run with {@code ./mvnw -Pload verify}. Tagged {@code load} and excluded from the default
  * build because it takes minutes and wants a larger heap. Bidder count and think time can be
  * overridden with {@code -Dstorm.bidders}, {@code -Dstorm.minThinkMillis} and
- * {@code -Dstorm.maxThinkMillis}.
+ * {@code -Dstorm.maxThinkMillis}; {@code -Dstorm.strategies=optimistic} runs a single strategy.
  */
 @Tag("load")
 class BidStormLoadTest {
@@ -28,7 +28,7 @@ class BidStormLoadTest {
     @Test
     void noBidIsLostWith1000ConcurrentBiddersUnderEitherStrategy() throws Exception {
         List<StormReport> reports = new ArrayList<>();
-        for (String strategy : List.of("optimistic", "pessimistic")) {
+        for (String strategy : System.getProperty("storm.strategies", "optimistic,pessimistic").split(",")) {
             reports.add(BidStorm.run(BidStorm.Scenario.load(strategy)));
         }
 

@@ -82,6 +82,10 @@ final class StormVerifier {
             summaries.put(auctionId, new AuctionSummary(auctionId, auction.status(), bids.size(), auction.lastSeq(),
                     auction.extensionCount(), auction.currentPrice(), subscribers.size()));
         }
+        int extensionsExercised = summaries.values().stream().mapToInt(AuctionSummary::extensions).sum();
+        if (extensionsExercised == 0) {
+            violations.add("inconclusive run: no bid landed in an anti-sniping window, so extensions were never exercised");
+        }
         for (StormBidder bidder : bidders) {
             bidder.problems.forEach(p -> violations.add("bidder " + bidder.index + ": " + p));
         }
@@ -299,10 +303,9 @@ final class StormVerifier {
             violations.add("auction %d: history implies %d extensions ending %s, row has %d ending %s"
                     .formatted(auction.id(), extensions, deadline, auction.extensionCount(), auction.endsAt()));
         }
-        if (auction.extensionCount() != scenario.maxExtensions()) {
-            violations.add("auction %d: expected all %d extensions to be used under constant bidding, got %d"
-                    .formatted(auction.id(), scenario.maxExtensions(), auction.extensionCount()));
-        }
+        // How many extensions a run reaches depends on how fast the machine answers bids, so
+        // it is reported, not demanded per auction. The run as a whole must reach the window
+        // (see verify), otherwise it proves nothing about extensions.
         for (StormBidder subscriber : subscribers) {
             if (subscriber.firstSeq == 1 && subscriber.extensionsSeen != auction.extensionCount()) {
                 violations.add("bidder %d saw %d TIME_EXTENDED events, the auction has %d"
