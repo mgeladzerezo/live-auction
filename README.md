@@ -111,7 +111,7 @@ Any figures should be quoted with the hardware, and with the caveat that the loa
 
 ## Known limitations
 
-- **Verification status.** The test suite was written but was **not executed in this final pass**. The only full `mvn verify` run (98 tests, all passing) was made against commit `1997830` ("load test with concurrent WebSocket bidders") before the demo seeder, the UI, the Docker files and later fixes were added; that result does not cover them. The 1,000-bidder profile was run a few times during development before an instruction to stop running code, with varying outcomes; no figures from those runs are recorded in this repository and none are claimed.
+- **Verification status.** The test suite in its final form has **not been executed**. The only full `mvn verify` run (98 tests, all passing) was made against the commit "load test with concurrent WebSocket bidders", before the demo seeder, the UI, the Docker files and later fixes were added; that result does not cover them. The 1,000-bidder profile was run a few times during development with varying outcomes on a heavily loaded machine; no figures from those runs are recorded in this repository and none are claimed.
 - The Dockerfile, `docker-compose.yml`, nginx configuration and CI workflow were **not built or started to completion in a verified state**. An earlier manual bring-up showed both instances healthy behind nginx and a bid on one instance delivered to sockets on both, but the final Dockerfile and nginx changes were not re-run.
 - The UI was only looked at as headless screenshots of the list and one auction page; the bid form, login dialog, extension flash and reconnect behaviour were not exercised in a browser.
 - The demo seeder and crowd simulator have no automated tests.
