@@ -4,6 +4,8 @@ A real-time auction service. Bids arrive over WebSockets, are decided inside Pos
 
 [![CI](https://github.com/mgeladzerezo/live-auction/actions/workflows/ci.yml/badge.svg)](https://github.com/mgeladzerezo/live-auction/actions/workflows/ci.yml)
 
+> **CI result.** On 7 October 2026 the workflow ran the complete suite on GitHub Actions (Ubuntu, Docker available) and it passed: 98 tests, including the always-on bidder storm, 0 failures ([run 37606207209](https://github.com/mgeladzerezo/live-auction/actions/runs/37606207209)). The verification notes further down describe what had been run on this machine before that and are kept for the record.
+
 Stack: Java 25, Spring Boot 4.1.1, PostgreSQL 16 with Flyway, raw `WebSocketHandler` with a small JSON protocol, vanilla ES-module UI, Micrometer/Prometheus.
 
 ## Architecture
